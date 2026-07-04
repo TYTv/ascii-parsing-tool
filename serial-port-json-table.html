@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>序列埠JSON資料顯示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+        h1 {
+            margin: 0 0 8px 0;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .com-port-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .com-port-btn .port-label {
+            margin-left: 8px;
+            font-size: 12px;
+            opacity: 0.9;
+            color: #ffffff;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .send-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .send-buttons button {
+            padding: 8px 16px;
+            background-color: #2196F3;
+            font-weight: bold;
+        }
+        .send-buttons button:hover {
+            background-color: #0b7dda;
+        }
+        .send-section {
+            margin-top: 10px;
+            padding: 6px 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        .send-section h3 {
+            margin: 0 0 6px 0;
+            line-height: 1.2;
+        }
+        .status {
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .latest-data {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .latest-data h2 {
+            margin-top: 0;
+            color: #1890ff;
+        }
+        .log {
+            height: 260px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: auto;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: clamp(8px, 1vw, 12px);
+            line-height: 1.4;
+            white-space: nowrap;
+            word-break: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>序列埠JSON資料解析與顯示</h1>
+        <div class="controls">
+            <div id="comPortButtons" class="com-port-buttons">
+                <!-- 動態添加序列埠按鈕 -->
+            </div>
+            <button id="addPortButton">新增埠</button>
+            <button id="clearButton">清除資料</button>
+        </div>
+        
+        <div class="send-section">
+            <h3>傳送資料至序列埠</h3>
+            <div class="send-buttons" id="sendButtons">
+                <button class="send-btn" data-char="0">0</button>
+                <button class="send-btn" data-char="1">1</button>
+                <button class="send-btn" data-char="2">2</button>
+                <button class="send-btn" data-char="3">3</button>
+                <button class="send-btn" data-char="4">4</button>
+                <button class="send-btn" data-char="5">5</button>
+                <button class="send-btn" data-char="6">6</button>
+                <button class="send-btn" data-char="7">7</button>
+                <button class="send-btn" data-char="8">8</button>
+                <button class="send-btn" data-char="9">9</button>
+            </div>
+        </div>
+        
+        <div class="log" id="log"></div>
+        
+        <div class="latest-data">
+            <h2>最新資訊</h2>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead id="tableHead">
+                        <!-- 動態添加表頭 -->
+                    </thead>
+                    <tbody>
+                        <!-- 只顯示最新一筆資料 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div>
+            <h3>歷史資料筆數：<span id="dataCount">0</span></h3>
+        </div>
+    </div>
+
+    <script>
+        // 全域變數
+        let port;
+        let reader;
+        let writer;
+        let readableStreamClosed;
+        let keepReading = true;
+        let decoder = new TextDecoder();
+        let encoder = new TextEncoder();
+        let buffer = '';
+        let dataArray = [];
+        let availablePorts = [];
+        let currentPortPath = null;
+        
+        // DOM 元素
+        const comPortButtonsDiv = document.getElementById('comPortButtons');
+        const addPortButton = document.getElementById('addPortButton');
+        const clearButton = document.getElementById('clearButton');
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const dataTable = document.getElementById('dataTable');
+        const tableHead = document.getElementById('tableHead');
+        const dataCountSpan = document.getElementById('dataCount');
+        const sendButtons = document.querySelectorAll('.send-btn');
+        
+        // 日誌函數（必須先定義）
+        function log(message) {
+            const now = new Date().toLocaleTimeString('zh-TW');
+            logDiv.innerHTML += `<div>[${now}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // 檢查瀏覽器是否支援 Web Serial API
+        if (!('serial' in navigator)) {
+            if (statusDiv) {
+                statusDiv.textContent = '狀態：您的瀏覽器不支援 Web Serial API';
+            }
+            addPortButton.disabled = true;
+            log('錯誤：此瀏覽器不支援 Web Serial API。請使用 Chrome/Edge 89+ 或其他支援的瀏覽器。');
+        }
+        
+        // 取得埠的內部顯示名稱（僅用於編號計算）
+        function getPortDisplayName(portObj, index) {
+            return `COM ${index}`;
+        }
+
+        function getPortLabel(portObj, index) {
+            let infoText = '';
+            try {
+                if (portObj && typeof portObj.getInfo === 'function') {
+                    const info = portObj.getInfo();
+                    const parts = [];
+                    if (info.usbVendorId !== undefined) {
+                        parts.push('VID:0x' + info.usbVendorId.toString(16).toUpperCase().padStart(4, '0'));
+                    }
+                    if (info.usbProductId !== undefined) {
+                        parts.push('PID:0x' + info.usbProductId.toString(16).toUpperCase().padStart(4, '0'));
+                    }
+                    infoText = parts.join(' ');
+                }
+            } catch (e) {
+                // ignore
+            }
+            return infoText ? infoText : `序列埠 ${index}`;
+        }
+        
+        // 偵測並重新掃描序列埠
+        async function refreshComPorts() {
+            try {
+                availablePorts = await navigator.serial.getPorts();
+                generateComPortButtons();
+                if (availablePorts.length > 0) {
+                    log(`已重新掃描，找到 ${availablePorts.length} 個序列埠`);
+                } else {
+                    log('未找到任何已授權的序列埠');
+                }
+            } catch (error) {
+                log(`偵測序列埠錯誤：${error}`);
+            }
+        }
+        
+        // 新增埠（讓使用者選擇新埠）
+        async function addNewPort() {
+            try {
+                const newPort = await navigator.serial.requestPort();
+                if (newPort) {
+                    if (!availablePorts.includes(newPort)) {
+                        availablePorts.push(newPort);
+                    }
+                    generateComPortButtons();
+                    log('已新增埠，現在可用的埠已更新');
+                    const portIndex = availablePorts.indexOf(newPort);
+                    const portLabel = getPortLabel(newPort, portIndex + 1);
+                    await connectToPort(newPort, portLabel);
+                }
+            } catch (error) {
+                if (error.name !== 'NotFoundError') {
+                    log(`新增埠錯誤：${error}`);
+                }
+            }
+        }
+        
+        // 動態生成序列埠按鈕
+        function generateComPortButtons() {
+            comPortButtonsDiv.innerHTML = '';
+            
+            if (availablePorts.length === 0) {
+                const span = document.createElement('span');
+                span.textContent = '未找到任何序列埠';
+                span.style.padding = '8px 16px';
+                span.style.color = '#999';
+                comPortButtonsDiv.appendChild(span);
+                return;
+            }
+            
+            availablePorts.forEach((portObj, index) => {
+                const displayName = getPortDisplayName(portObj, index + 1);
+                if (displayName === 'COM 1') {
+                    return; // 移除 COM 1 按鈕
+                }
+
+                const button = document.createElement('button');
+                const label = getPortLabel(portObj, index + 1);
+
+                // 顯示按鈕文字為埠名稱，詳細埠資訊放到 tooltip (title)
+                button.textContent = label;
+                button.title = label;
+                button.dataset.portIndex = index;
+                button.classList.add('com-port-btn');
+                button.addEventListener('click', () => connectToPort(portObj, label));
+                comPortButtonsDiv.appendChild(button);
+            });
+        }
+        
+        // 連接到指定的序列埠
+        async function connectToPort(selectedPort, portName) {
+            try {
+                port = selectedPort;
+                await port.open({ baudRate: 9600 });
+                
+                currentPortPath = portName;
+                addPortButton.disabled = true;
+                toggleSendButtons(false);
+                disableAllComButtons(true);
+                if (statusDiv) {
+                    statusDiv.textContent = `狀態：已連接至 ${portName}`;
+                }
+                log(`成功連接至 ${portName}`);
+                
+                // 設置傳送和接收
+                writer = port.writable.getWriter();
+                
+                // 開始讀取資料
+                readSerialData();
+            } catch (error) {
+                log(`連接錯誤：${error}`);
+                if (statusDiv) {
+                    statusDiv.textContent = `狀態：連接失敗 - ${error.message}`;
+                }
+            }
+        }
+        
+        // 禁用/啟用所有序列埠按鈕
+        function disableAllComButtons(disabled) {
+            const comButtons = comPortButtonsDiv.querySelectorAll('button');
+            comButtons.forEach(button => {
+                button.disabled = disabled;
+            });
+        }
+        
+        // 新增埠按鈕事件
+        addPortButton.addEventListener('click', addNewPort);
+        
+        // 清除資料
+        clearButton.addEventListener('click', () => {
+            dataArray = [];
+            updateTable();
+            updateDataCount();
+            log('資料已清除');
+        });
+        
+        // 設置傳送按鈕
+        sendButtons.forEach(button => {
+            button.disabled = true;
+            button.addEventListener('click', async () => {
+                const char = button.getAttribute('data-char');
+                await sendData(char);
+            });
+        });
+        
+        // 切換傳送按鈕狀態
+        function toggleSendButtons(disabled) {
+            sendButtons.forEach(button => {
+                button.disabled = disabled;
+            });
+        }
+        
+        // 傳送資料至序列埠
+        async function sendData(char) {
+            if (writer) {
+                try {
+                    await writer.write(encoder.encode(char));
+                    log(`已傳送字元：${char}`);
+                } catch (error) {
+                    log(`傳送錯誤：${error}`);
+                }
+            }
+        }
+        
+        // 讀取序列埠資料（帶重試機制）
+        async function readSerialData() {
+            keepReading = true;
+            const maxRetries = 5;
+            let retryCount = 0;
+            
+            async function attemptRead() {
+                try {
+                    // 讀取序列埠資料流
+                    const readable = port.readable;
+                    reader = readable.getReader();
+                    readableStreamClosed = readable.cancel().catch(() => { /* ignore */ });
+                    
+                    retryCount = 0; // 成功連接後重置重試計數
+                    
+                    while (keepReading) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            break;
+                        }
+                        
+                        // 處理收到的資料
+                        const chunk = decoder.decode(value);
+                        processChunk(chunk);
+                    }
+                    
+                    reader.releaseLock();
+                } catch (error) {
+                    if (reader) {
+                        reader.releaseLock();
+                    }
+                    
+                    // 如果讀取錯誤，重試
+                    if (keepReading && retryCount < maxRetries) {
+                        retryCount++;
+                        log(`讀取錯誤：${error}，正在重試... (第 ${retryCount}/${maxRetries} 次)`);
+                        // 等待 1 秒後重試
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        await attemptRead();
+                    } else if (keepReading) {
+                        log(`讀取錯誤已超過最大重試次數，已停止讀取: ${error}`);
+                        if (statusDiv) {
+                            statusDiv.textContent = '狀態：讀取失敗';
+                        }
+                    }
+                }
+            }
+            
+            await attemptRead();
+        }
+        
+        // 處理接收到的資料
+        function processChunk(chunk) {
+            buffer += chunk;
+            
+            // 嘗試從緩衝區提取完整的 JSON 物件
+            let newlineIndex;
+            while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+                const line = buffer.substring(0, newlineIndex).trim();
+                
+                if (line) {
+                    try {
+                        const jsonData = JSON.parse(line);
+                        log(`接收到 JSON 資料：${line}`);
+                        // 新增時間戳
+                        jsonData.timestamp = new Date().toLocaleTimeString('zh-TW');
+                        dataArray.push(jsonData);
+                        
+                        // 更新表格（只顯示最新資料）
+                        updateTable();
+                        // 更新資料計數
+                        updateDataCount();
+                        
+                        // 解析成功，移除該行
+                        buffer = buffer.substring(newlineIndex + 1);
+                    } catch (error) {
+                        // 解析失敗，清除整個緩衝區，重新收集資料
+                        log(`解析 JSON 失敗：${error}，清除緩衝區，準備重新收集資料...`);
+                        buffer = ''; // 清除整個緩衝區
+                        break; // 退出迴圈
+                    }
+                } else {
+                    // 空行，直接移除
+                    buffer = buffer.substring(newlineIndex + 1);
+                }
+            }
+        }
+        
+        // 更新表格（只顯示最新資料及其欄位）
+        function updateTable() {
+            // 只處理最新的一筆資料
+            if (dataArray.length > 0) {
+                const latestData = dataArray[dataArray.length - 1];
+                
+                // 更新表頭，只顯示最新資料中存在的欄位
+                tableHead.innerHTML = '';
+                const headerRow = document.createElement('tr');
+                
+                // 取得最新資料的所有欄位
+                const headers = Object.keys(latestData);
+                
+                headers.forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    headerRow.appendChild(th);
+                });
+                
+                tableHead.appendChild(headerRow);
+                
+                // 顯示最新資料
+                const tbody = dataTable.querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                const row = document.createElement('tr');
+                
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = latestData[header] !== undefined ? latestData[header] : '';
+                    row.appendChild(td);
+                });
+                
+                tbody.appendChild(row);
+            } else {
+                // 若無資料，清空表格
+                tableHead.innerHTML = '';
+                dataTable.querySelector('tbody').innerHTML = '';
+            }
+        }
+        
+        // 更新資料計數
+        function updateDataCount() {
+            dataCountSpan.textContent = dataArray.length;
+        }
+        
+        // 頁面載入時初始化序列埠
+        window.addEventListener('load', () => {
+            refreshComPorts();
+        });
+    </script>
+</body>
+</html>
