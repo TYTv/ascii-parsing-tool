@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASCII 編碼字串解析工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #5d6976;
+      --line: #d9e0e8;
+      --accent: #1264a3;
+      --accent-soft: #e8f2fb;
+      --danger: #b42318;
+      --ok: #147a4d;
+      --code: #102033;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    main {
+      width: 100vw;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    @media (max-width: 640px) {
+      main {
+        width: 100vw;
+        margin: 0;
+        padding: 0;
+      }
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(16, 32, 51, 0.04);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 142px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      color: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      outline: none;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(18, 100, 163, 0.14);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      align-items: center;
+    }
+
+    button {
+      min-height: 38px;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0 14px;
+      background: var(--accent);
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: white;
+      color: var(--accent);
+    }
+
+    .status {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status.error {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .status.ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+      min-width: 0;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 18px;
+      color: var(--code);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--accent-soft);
+      color: #16324a;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      z-index: 1;
+    }
+
+    td.mono,
+    th.mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .ascii-box {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 12px;
+      color: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      min-height: 96px;
+    }
+
+    .checksum-box {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 12px;
+      color: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      max-height: 520px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 6px;
+      min-height: 220px;
+    }
+
+    .chart-wrap canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1120 / 340;
+      max-height: 260px;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .chart-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .field-note {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        width: min(100vw - 20px, 1180px);
+        margin-top: 16px;
+      }
+
+      .summary,
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ASCII 編碼字串解析工具</h1>
+    <p class="subtitle">貼上設備輸出的字串後，自動拆解封包標頭、Hex payload、Bytes、ASCII 顯示與欄位解析。</p>
+
+    <section class="panel">
+      <label for="source">輸入字串</label>
+      <textarea id="source" spellcheck="false">$V1PKF3,25080501FF000A00003ADF01240D3B0A4B0A580557024A01390132022E192C38D001231239234926561A57094A013A01320C23192C04</textarea>
+      <p class="field-note">可貼上 COM Port 原始資料流，系統會自動擷取 `$V1PKF3,` 封包；不須標頭直接貼上 108 個 Hex 字元也可解析。</p>
+      <div class="toolbar">
+        <button id="parseBtn" type="button">解析</button>
+        <button id="sampleBtn" class="secondary" type="button">帶入範例</button>
+        <button id="clearBtn" class="secondary" type="button">清除</button>
+        <button id="serialBtn" class="secondary" type="button">選擇串列埠</button>
+        <div id="status" class="status" role="status"></div>
+      </div>
+      <div id="serialPortInfo" class="field-note">尚未選擇串列埠</div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>M1 電流 + DUTY 曲線</h2>
+        <p class="field-note">M1 曲線：電流值為原始 byte ÷ 10；DUTY 值為 payload byte 的最低 7 bit。</p>
+        <div class="toolbar" style="margin-top:0;margin-bottom:8px">
+          <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:13px;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="m1FilterOpen" checked data-motor="m1" data-dir="open"> 顯示 open
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:13px;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="m1FilterClose" checked data-motor="m1" data-dir="close"> 顯示 close
+          </label>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="m1Chart" width="1120" height="340"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="chart-swatch" style="background:#1264a3"></span>電流</span>
+          <span><span class="chart-swatch" style="background:#1f7f32"></span>DUTY 市電</span>
+          <span><span class="chart-swatch" style="background:#d26b1a"></span>DUTY 電池</span>
+          <span>橫軸：行程百分比 5% 到 95%</span>
+          <span>左軸：電流（A），右軸：DUTY (%)</span>
+          <span id="m1PacketLegend" class="packet-legend"></span>
+        </div>
+        <div id="m1ChartStatus" class="status"></div>
+      </div>
+
+      <div class="panel">
+        <h2>M2 電流 + DUTY 曲線</h2>
+        <p class="field-note">M2 曲線：電流值為原始 byte ÷ 10；DUTY 值為 payload byte 的最低 7 bit。</p>
+        <div class="toolbar" style="margin-top:0;margin-bottom:8px">
+          <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:13px;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="m2FilterOpen" checked data-motor="m2" data-dir="open"> 顯示 open
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:13px;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="m2FilterClose" checked data-motor="m2" data-dir="close"> 顯示 close
+          </label>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="m2Chart" width="1120" height="340"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="chart-swatch" style="background:#c4511a"></span>電流</span>
+          <span><span class="chart-swatch" style="background:#1f7f32"></span>DUTY 市電</span>
+          <span><span class="chart-swatch" style="background:#d26b1a"></span>DUTY 電池</span>
+          <span>橫軸：行程百分比 5% 到 95%</span>
+          <span>左軸：電流（A），右軸：DUTY (%)</span>
+          <span id="m2PacketLegend" class="packet-legend"></span>
+        </div>
+        <div id="m2ChartStatus" class="status"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>性能變異率曲線</h2>
+      <p class="field-note">繪製每筆封包的性能變異率，橫軸為封包序號。</p>
+      <div class="chart-wrap">
+        <canvas id="performanceChart" width="1120" height="340"></canvas>
+      </div>
+      <div class="chart-legend">
+        <span><span class="chart-swatch" style="background:#4a4ab5"></span>性能變異率</span>
+        <span>橫軸：封包序號</span>
+        <span>縱軸：性能變異率 %</span>
+      </div>
+      <div id="performanceChartStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2>封包摘要</h2>
+      <div class="summary">
+        <div class="metric">
+          <span>標頭</span>
+          <strong id="headerValue">-</strong>
+        </div>
+        <div class="metric">
+          <span>Payload Hex 長度</span>
+          <strong id="hexLength">-</strong>
+        </div>
+        <div class="metric">
+          <span>Byte 數</span>
+          <strong id="byteLength">-</strong>
+        </div>
+        <div class="metric">
+          <span>Backend Hex</span>
+          <strong id="backendLength">-</strong>
+        </div>
+        <div class="metric">
+          <span>Total bytes</span>
+          <strong id="totalLength">-</strong>
+        </div>
+        <div class="metric">
+          <span>系統類別</span>
+          <strong id="systemType">-</strong>
+        </div>
+        <div class="metric">
+          <span>版本</span>
+          <strong id="releaseVersion">-</strong>
+        </div>
+        <div class="metric">
+          <span>運作次數</span>
+          <strong id="runCount">-</strong>
+        </div>
+        <div class="metric">
+          <span>性能變異率</span>
+          <strong id="performanceDelta">-</strong>
+        </div>
+        <div class="metric">
+          <span>錯誤代碼</span>
+          <strong id="errorCode">-</strong>
+        </div>
+        <div class="metric">
+          <span>封包數</span>
+          <strong id="packetCount">-</strong>
+        </div>
+        <div class="metric">
+          <span>Checksum</span>
+          <strong id="checksumValue">-</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>對應解析內容</h2>
+        <p class="field-note">依 Excel 規格解析：<code>$V1PKF3,</code> 為 8-byte ASCII header；逗號後 backend 為 108 個 hex 字元，也就是 54 bytes；結尾資料流另含 <code>\r\n\0</code>。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>內容</th>
+                <th class="mono">位置</th>
+                <th class="mono">Hex</th>
+                <th>解析值</th>
+                <th>備註</th>
+              </tr>
+            </thead>
+            <tbody id="fieldsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>ASCII 視圖</h2>
+        <pre id="asciiView" class="ascii-box">-</pre>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Byte 明細</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="mono">Offset</th>
+              <th class="mono">Hex</th>
+              <th class="mono">Dec</th>
+              <th class="mono">Bin</th>
+              <th>ASCII</th>
+            </tr>
+          </thead>
+          <tbody id="bytesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>CheckSUM 完整計算過程</h2>
+      <pre id="checksumProcess" class="checksum-box">-</pre>
+    </section>
+  </main>
+
+  <script>
+    const SAMPLE = `$V1PKF3,25080501FF000A00003ADF01240D3B0A4B0A580557024A01390132022E192C38D001231239234926561A57094A01
+3A01320C23192C04`;
+
+    const els = {
+      source: document.getElementById("source"),
+      status: document.getElementById("status"),
+      headerValue: document.getElementById("headerValue"),
+      hexLength: document.getElementById("hexLength"),
+      byteLength: document.getElementById("byteLength"),
+      backendLength: document.getElementById("backendLength"),
+      totalLength: document.getElementById("totalLength"),
+      packetCount: document.getElementById("packetCount"),
+      systemType: document.getElementById("systemType"),
+      releaseVersion: document.getElementById("releaseVersion"),
+      runCount: document.getElementById("runCount"),
+      performanceDelta: document.getElementById("performanceDelta"),
+      errorCode: document.getElementById("errorCode"),
+      checksumValue: document.getElementById("checksumValue"),
+      checksumProcess: document.getElementById("checksumProcess"),
+      fieldsBody: document.getElementById("fieldsBody"),
+      bytesBody: document.getElementById("bytesBody"),
+      asciiView: document.getElementById("asciiView"),
+      serialPortInfo: document.getElementById("serialPortInfo"),
+      m1Chart: document.getElementById("m1Chart"),
+      m2Chart: document.getElementById("m2Chart"),
+      performanceChart: document.getElementById("performanceChart"),
+      m1ChartStatus: document.getElementById("m1ChartStatus"),
+      m2ChartStatus: document.getElementById("m2ChartStatus"),
+      performanceChartStatus: document.getElementById("performanceChartStatus"),
+      m1PacketLegend: document.getElementById("m1PacketLegend"),
+      m2PacketLegend: document.getElementById("m2PacketLegend")
+    };
+
+    document.getElementById("parseBtn").addEventListener("click", parseAndRender);
+    document.getElementById("sampleBtn").addEventListener("click", () => {
+      els.source.value = SAMPLE;
+      parseAndRender();
+    });
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      els.source.value = "";
+      parseAndRender();
+    });
+    document.getElementById("serialBtn").addEventListener("click", toggleSerialPort);
+    els.source.addEventListener("input", parseAndRender);
+    document.querySelectorAll("[id$=FilterOpen], [id$=FilterClose]").forEach((cb) => {
+      cb.addEventListener("change", parseAndRender);
+    });
+
+    let serialPort = null;
+    let serialReader = null;
+    let serialBuffer = "";
+    let serialCloseRequested = false;
+    const SERIAL_MARKER = "$V1PKF3,";
+    const SERIAL_PACKET_HEX_LENGTH = 108;
+    const SERIAL_PACKET_LENGTH = SERIAL_MARKER.length + SERIAL_PACKET_HEX_LENGTH;
+
+    async function toggleSerialPort() {
+      if (!navigator.serial) {
+        setStatus("瀏覽器不支援 Web Serial API，無法選擇串列埠。", "error");
+        return;
+      }
+
+      if (serialPort) {
+        serialCloseRequested = true;
+        await closeSerialPort();
+        return;
+      }
+
+      await openSerialPort();
+    }
+
+    function getPortLabel(port) {
+      if (!port || !port.getInfo) {
+        return "未知裝置";
+      }
+      const info = port.getInfo();
+      const parts = [];
+      if (info.usbVendorId !== undefined) {
+        parts.push(`VID:${info.usbVendorId.toString(16).padStart(4, "0").toUpperCase()}`);
+      }
+      if (info.usbProductId !== undefined) {
+        parts.push(`PID:${info.usbProductId.toString(16).padStart(4, "0").toUpperCase()}`);
+      }
+      return parts.length ? parts.join(" ") : "已選擇裝置";
+    }
+
+    async function openSerialPort() {
+      try {
+        serialPort = await navigator.serial.requestPort();
+        await serialPort.open({ baudRate: 9600 });
+        serialCloseRequested = false;
+        els.serialPortInfo.textContent = `已選擇：${getPortLabel(serialPort)}`;
+        document.getElementById("serialBtn").textContent = "斷開串列埠";
+        setStatus("串列埠已連線，開始讀取資料。", "ok");
+        startSerialRead();
+      } catch (error) {
+        setStatus(`無法開啟串列埠：${error.message || error}`, "error");
+      }
+    }
+
+    async function closeSerialPort() {
+      serialCloseRequested = true;
+      if (serialReader) {
+        try {
+          await serialReader.cancel();
+        } catch (error) {
+          console.warn("取消 reader 時發生錯誤", error);
+        }
+        try {
+          serialReader.releaseLock();
+        } catch (error) {
+          console.warn("釋放 reader lock 時發生錯誤", error);
+        }
+        serialReader = null;
+      }
+      if (serialPort) {
+        try {
+          await serialPort.close();
+        } catch (error) {
+          console.warn("關閉串列埠時發生錯誤", error);
+        }
+      }
+      serialPort = null;
+      els.serialPortInfo.textContent = "尚未選擇串列埠";
+      document.getElementById("serialBtn").textContent = "選擇串列埠";
+      setStatus("已斷開串列埠。", "");
+    }
+
+    async function startSerialRead() {
+      if (!serialPort || !serialPort.readable) {
+        setStatus("目前無可讀取的串列埠。", "error");
+        return;
+      }
+
+      serialBuffer = "";
+      const reader = serialPort.readable.getReader();
+      serialReader = reader;
+      const textDecoder = new TextDecoder();
+
+      try {
+        while (!serialCloseRequested) {
+          const { value, done } = await reader.read();
+          if (done) {
+            setStatus("串列埠資料流已結束。", "");
+            break;
+          }
+          if (value) {
+            serialBuffer += textDecoder.decode(value, { stream: true });
+            processSerialBuffer();
+          }
+        }
+      } catch (error) {
+        if (!serialCloseRequested) {
+          setStatus(`讀取串列埠資料時發生錯誤：${error.message || error}`, "error");
+        }
+      } finally {
+        if (serialCloseRequested || !serialPort || !serialPort.readable) {
+          await closeSerialPort();
+        }
+      }
+    }
+
+    function processSerialBuffer() {
+      serialBuffer = serialBuffer.replace(/\s+/g, "");
+      const markerIndex = serialBuffer.indexOf(SERIAL_MARKER);
+      if (markerIndex === -1) {
+        if (serialBuffer.length > SERIAL_MARKER.length) {
+          serialBuffer = serialBuffer.slice(-SERIAL_MARKER.length);
+        }
+        return;
+      }
+      if (markerIndex > 0) {
+        serialBuffer = serialBuffer.slice(markerIndex);
+      }
+
+      while (serialBuffer.length >= SERIAL_PACKET_LENGTH) {
+        const packetCandidate = serialBuffer.slice(0, SERIAL_PACKET_LENGTH);
+        if (/^\$V1PKF3,[0-9A-Fa-f]{108}$/.test(packetCandidate)) {
+          const existing = els.source.value.trim();
+          els.source.value = existing ? `${existing}\n${packetCandidate}` : packetCandidate;
+          parseAndRender();
+          setStatus("已從序列埠擷取到完整封包並解析。", "ok");
+          serialBuffer = serialBuffer.slice(SERIAL_PACKET_LENGTH);
+          continue;
+        }
+        serialBuffer = serialBuffer.slice(1);
+      }
+
+      if (serialBuffer.length > 4096) {
+        serialBuffer = "";
+        setStatus("Buffer overrun，已清除緩衝區並繼續讀取。", "error");
+      }
+    }
+
+    function extractV1Packets(raw) {
+      const cleaned = raw.replace(/\s+/g, "");
+      const headerMatches = [...cleaned.matchAll(/\$V1PKF3,[0-9A-Fa-f]{108}/g)];
+      if (headerMatches.length) {
+        return headerMatches.map((m) => m[0]);
+      }
+      const bareResults = [];
+      const tokens = raw.split(/\s+/).filter(Boolean);
+      for (const token of tokens) {
+        const t = token.replace(/\s+/g, "");
+        if (/^[0-9A-Fa-f]{108}$/i.test(t)) {
+          bareResults.push(`,${t.toUpperCase()}`);
+        }
+      }
+      return bareResults;
+    }
+
+    function parsePackets(raw) {
+      const packets = extractV1Packets(raw);
+      if (!packets.length) {
+        throw new Error("未偵測到完整封包，請貼上含有 $V1PKF3, 開頭的資料，或直接貼上 108 個 Hex 字元。");
+      }
+      return packets.map((packet) => parsePacket(packet));
+    }
+
+    function extractV1Packet(raw) {
+      const cleaned = raw.replace(/\s+/g, "");
+      const headerMatch = cleaned.match(/\$V1PKF3,([0-9A-Fa-f]{108})/);
+      if (headerMatch) {
+        return `$V1PKF3,${headerMatch[1]}`;
+      }
+      const bareMatch = cleaned.match(/(?:^|[^0-9A-Fa-f])([0-9A-Fa-f]{108})(?:$|[^0-9A-Fa-f])/);
+      if (bareMatch) {
+        return `,${bareMatch[1]}`;
+      }
+      return null;
+    }
+
+    function parsePacket(raw) {
+      const extracted = raw.startsWith("$V1PKF3,") ? raw : extractV1Packet(raw);
+      if (!extracted) {
+        throw new Error("未偵測到完整封包，請貼上含有 $V1PKF3, 開頭的資料，或直接貼上 108 個 Hex 字元。");
+      }
+      const compact = extracted.trim().replace(/\s+/g, "");
+      const commaIndex = compact.indexOf(",");
+      const header = commaIndex >= 0 ? compact.slice(0, commaIndex) : "";
+      const hex = (commaIndex >= 0 ? compact.slice(commaIndex + 1) : compact)
+        .replace(/^0x/i, "")
+        .toUpperCase();
+
+      if (!/^[0-9A-F]*$/.test(hex)) {
+        throw new Error("Payload 只能包含 0-9 與 A-F 的 Hex 字元。");
+      }
+      if (hex.length % 2 !== 0) {
+        throw new Error("Hex payload 長度必須是偶數，才能每 2 碼轉成 1 byte。");
+      }
+
+      const bytes = [];
+      for (let i = 0; i < hex.length; i += 2) {
+        bytes.push(parseInt(hex.slice(i, i + 2), 16));
+      }
+
+      return { header, hex, bytes };
+    }
+
+    function renderSummary(packet, count) {
+      els.headerValue.textContent = packet.header || "(無)";
+      els.hexLength.textContent = String(packet.hex.length);
+      els.byteLength.textContent = String(packet.bytes.length);
+      els.backendLength.textContent = String(packet.hex.length);
+      els.totalLength.textContent = packet.hex ? String((packet.header ? packet.header.length + 1 : 0) + packet.hex.length + 3) : "-";
+      if (els.systemType) {
+        els.systemType.textContent = formatSystemType(packet);
+      }
+      if (els.releaseVersion) {
+        els.releaseVersion.textContent = formatReleaseVersion(packet);
+      }
+      if (els.runCount) {
+        els.runCount.textContent = formatRunCount(packet);
+      }
+      if (els.performanceDelta) {
+        els.performanceDelta.textContent = formatPerformanceDelta(packet);
+      }
+      if (els.errorCode) {
+        els.errorCode.textContent = formatErrorCodeEntry(packet);
+      }
+      if (els.packetCount) {
+        els.packetCount.textContent = String(count);
+      }
+      els.checksumValue.textContent = packet.bytes.length ? `${toHex(packet.bytes[packet.bytes.length - 1])} / ASCII XOR ${toHex(calculateChecksum(packet))}` : "-";
+    }
+
+    function renderFields(packet) {
+      const bytes = packet.bytes;
+      els.fieldsBody.innerHTML = "";
+
+      for (const field of buildFieldDefinitions(packet)) {
+        const slice = typeof field.offset === "number"
+          ? bytes.slice(field.offset, field.offset + field.length)
+          : [];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(field.name)}</td>
+          <td class="mono">${escapeHtml(field.position || formatPosition(field))}</td>
+          <td class="mono">${escapeHtml(field.hex || slice.map(toHex).join(" ") || "-")}</td>
+          <td>${escapeHtml(field.value || formatFieldValue(field, slice))}</td>
+          <td>${escapeHtml(field.note || "")}</td>
+        `;
+        els.fieldsBody.appendChild(tr);
+      }
+    }
+
+    function buildFieldDefinitions(packet) {
+      const header = parseHeader(packet.header);
+      const checksum = packet.bytes.length ? packet.bytes[packet.bytes.length - 1] : 0;
+      const checksumXor = calculateChecksum(packet);
+      const fields = [
+        { name: "Header", position: packet.header ? "ASCII[0..7]" : "-", hex: packet.header ? textToHex(`${packet.header},`) : "-", value: packet.header ? `這包資料的開頭是 ${packet.header},` : "未提供標頭，直接解析 Hex Payload", note: packet.header ? "用來辨識這是 V1 PKF3 格式" : "使用者直接輸入 108 Hex 字元，無 $V1PKF3, 標頭" },
+        { name: "管制碼 year", offset: 0, length: 1, type: "control_code", note: "管制碼年份" },
+        { name: "管制碼 month", offset: 1, length: 1, type: "control_code", note: "管制碼月份" },
+        { name: "管制碼 sequence", offset: 2, length: 1, type: "control_code", note: "管制碼序號" },
+        { name: "release version", offset: 3, length: 1, type: "control_code", note: "釋出版本" },
+        { name: "系統類別 + BETA", offset: 4, length: 1, type: "system_beta", note: "最高 bit 表示系統基準，其餘 7 bit 表示正式版或 beta 版號" },
+        { name: "運作次數", offset: 5, length: 2, type: "run_count", note: "開完成與關完成都會累計，所以完整開關一次通常加 2" },
+        { name: "性能變異率", offset: 7, length: 1, type: "int8_percent", note: "與基準性能相比的變化百分比，可為負值" },
+        { name: "代碼", offset: 8, length: 1, type: "error_code", note: "用來判斷 EEPROM、RAM 或其他錯誤原因" },
+        { name: "M1 運行方向 + 行程總長", offset: 9, length: 2, type: "direction_travel", note: "最高 bit 是方向，其餘 bit 是行程長度" }
+      ];
+
+      fields.push(...buildMotorFields("M1", 11));
+      fields.push({ name: "M2 運行方向 + 行程總長", offset: 31, length: 2, type: "direction_travel", note: "最高 bit 是方向；若 M2 未使用，規格可能填 0xFF" });
+      fields.push(...buildMotorFields("M2", 33));
+
+      if (packet.bytes.length > 0) {
+        fields.push({
+          name: "CheckSUM",
+          offset: packet.bytes.length - 1,
+          length: 1,
+          type: "hex",
+          value: `收到 ${toHex(checksum)}，依 ASCII 字元 XOR 算出 ${toHex(checksumXor)}，${checksum === checksumXor ? "資料檢查通過" : "資料檢查失敗"}`,
+          note: "只算系統類別+BETA 到最後一筆 DUTY 的 hex 字元；不含 Header、管制碼與結尾控制字元"
+        });
+      }
+
+      fields.push({ name: "return", position: "ASCII tail", hex: "0D", value: "換行前的 CR 字元", note: "封包結尾控制字元，不列入 backend 108 hex" });
+      fields.push({ name: "new line", position: "ASCII tail", hex: "0A", value: "換行 LF 字元", note: "封包結尾控制字元，不列入 backend 108 hex" });
+      fields.push({ name: "null", position: "ASCII tail", hex: "00", value: "字串結束字元", note: "封包結尾控制字元，不列入 backend 108 hex" });
+
+      return fields;
+    }
+
+    function buildMotorFields(motorName, startOffset) {
+      const percentages = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95];
+      const fields = [];
+      percentages.forEach((percent, index) => {
+        const currentOffset = startOffset + index * 2;
+        fields.push({
+          name: `${motorName} ${percent}% 電流`,
+          offset: currentOffset,
+          length: 1,
+          type: "current",
+          note: "原始值除以 10 後是安培，例如 160 表示 16.0A"
+        });
+        fields.push({
+          name: `${motorName} ${percent}% 電力來源 + DUTY`,
+          offset: currentOffset + 1,
+          length: 1,
+          type: "power_duty",
+          note: "最高 bit 是電力來源，其餘 7 bit 是 duty 百分比"
+        });
+      });
+      return fields;
+    }
+
+    function parseHeader(header) {
+      return {
+        prefix: header.slice(0, 1),
+        version: header.slice(1, 3),
+        packetType: header.slice(3, 5),
+        functionCode: header.slice(5)
+      };
+    }
+
+    function renderBytes(bytes) {
+      els.bytesBody.innerHTML = "";
+
+      bytes.forEach((byte, index) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="mono">${index}</td>
+          <td class="mono">${toHex(byte)}</td>
+          <td class="mono">${byte}</td>
+          <td class="mono">${byte.toString(2).padStart(8, "0")}</td>
+          <td>${escapeHtml(printableAscii(byte))}</td>
+        `;
+        els.bytesBody.appendChild(tr);
+      });
+    }
+
+    function renderAscii(bytes) {
+      els.asciiView.textContent = bytes.map(printableAscii).join("");
+    }
+
+    function renderChecksumProcess(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length === 0) {
+        els.checksumProcess.textContent = "-";
+        return;
+      }
+
+      const startByte = 4;
+      const endByte = bytes.length - 2;
+      const startChar = startByte * 2;
+      const endChar = (endByte + 1) * 2 - 1;
+      const checksumText = packet.hex.slice(startChar, endChar + 1);
+      const received = bytes[bytes.length - 1];
+      const lines = [];
+      let checksum = 0;
+
+      lines.push("XOR 模式：ASCII 字元 XOR，不先把 hex 轉成 byte");
+      lines.push("XOR 範圍：payload byte[4] 到 payload byte[" + endByte + "] 對應的 hex 字元");
+      lines.push("ASCII hex 字元位置：hex[" + startChar + "] 到 hex[" + endChar + "]");
+      lines.push("不參與計算：Header、管制碼 payload[0..3]、CheckSUM payload[" + (bytes.length - 1) + "]、\\r、\\n、\\0");
+      lines.push("");
+      lines.push("參與 XOR 的 ASCII 字元：");
+      lines.push(checksumText);
+      lines.push("");
+      lines.push("逐步計算：");
+
+      for (let index = 0; index < checksumText.length; index += 1) {
+        const char = checksumText[index];
+        const charCode = char.charCodeAt(0);
+        const before = checksum;
+        checksum = checksum ^ charCode;
+        lines.push(
+          `step ${String(index + 1).padStart(3, "0")}  ` +
+          `hex[${String(startChar + index).padStart(3, "0")}] '${char}' ASCII ${toHex(charCode)}  ` +
+          `${toHex(before)} XOR ${toHex(charCode)} = ${toHex(checksum)}`
+        );
+      }
+
+      lines.push("");
+      lines.push(`計算結果：${toHex(checksum)}`);
+      lines.push(`收到 CheckSUM：${toHex(received)}`);
+      lines.push(`比對結果：${checksum === received ? "符合" : "不符合"}`);
+
+      els.checksumProcess.textContent = lines.join("\n");
+    }
+
+    function formatFieldValue(field, bytes) {
+      if (bytes.length !== field.length) {
+        return `資料不足：需要 ${field.length} bytes，取得 ${bytes.length} bytes`;
+      }
+
+      switch (field.type) {
+        case "date_yy_mm_dd": {
+          const year = 2000 + bytes[0];
+          const month = String(bytes[1]).padStart(2, "0");
+          const day = String(bytes[2]).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        }
+        case "uint8":
+          return String(bytes[0]);
+        case "control_code":
+          return `${toHex(bytes[0])}，數值 ${bytes[0]}`;
+        case "bcd_or_hex":
+          return `${toHex(bytes[0])} (${bytes[0]})`;
+        case "uint16_be":
+          return String((bytes[0] << 8) | bytes[1]);
+        case "run_count": {
+          const count = (bytes[0] << 8) | bytes[1];
+          return `目前累計 ${count} 次動作完成`;
+        }
+        case "uint16_le":
+          return String((bytes[1] << 8) | bytes[0]);
+        case "uint32_be":
+          return String(((bytes[0] * 0x1000000) + ((bytes[1] << 16) | (bytes[2] << 8) | bytes[3])) >>> 0);
+        case "flag8":
+          return `0x${toHex(bytes[0])} / b${bytes[0].toString(2).padStart(8, "0")}`;
+        case "system_beta": {
+          const timeBase = (bytes[0] & 0x80) !== 0;
+          const beta = bytes[0] & 0x7F;
+          const baseText = timeBase ? "時間基準 time_base" : "Hall 基準 hall_base";
+          const versionText = beta === 0 ? "正式版" : `Beta 版號 ${beta}`;
+          return `使用${baseText}，目前是${versionText}`;
+        }
+        case "int8_percent": {
+          const signed = bytes[0] >= 0x80 ? bytes[0] - 0x100 : bytes[0];
+          if (signed === 0) {
+            return "與基準相同，變異率 0%";
+          }
+          return signed > 0 ? `比基準高 ${signed}%` : `比基準低 ${Math.abs(signed)}%`;
+        }
+        case "error_code":
+          return formatErrorCode(bytes[0]);
+        case "direction_travel": {
+          const raw = (bytes[0] << 8) | bytes[1];
+          const direction = (raw & 0x8000) !== 0 ? "close" : "open";
+          const travel = raw & 0x7FFF;
+          return `${direction === "open" ? "開門方向" : "關門方向"}，行程總長 ${travel}`;
+        }
+        case "current":
+          return `電流 ${formatScaled(bytes[0], 10)}A（原始值 ${bytes[0]}）`;
+        case "power_duty": {
+          const source = (bytes[0] & 0x80) !== 0 ? "電池供電" : "市電供電";
+          const duty = bytes[0] & 0x7F;
+          return `${source}，DUTY ${duty}%`;
+        }
+        case "uint16_triplet": {
+          const unsigned = (bytes[0] << 8) | bytes[1];
+          const signed = unsigned >= 0x8000 ? unsigned - 0x10000 : unsigned;
+          return `${unsigned} / signed ${signed} / ÷10 ${formatScaled(unsigned, 10)} / ÷100 ${formatScaled(unsigned, 100)}`;
+        }
+        case "hex_pairs":
+          return bytes.map((byte, index) => `${field.offset + index}:${toHex(byte)}`).join("  ");
+        case "ascii":
+          return bytes.map(printableAscii).join("");
+        case "hex":
+        default:
+          return bytes.map(toHex).join(" ");
+      }
+    }
+
+    function toHex(byte) {
+      return byte.toString(16).toUpperCase().padStart(2, "0");
+    }
+
+    function textToHex(text) {
+      if (!text) {
+        return "-";
+      }
+      return Array.from(text).map((char) => toHex(char.charCodeAt(0))).join(" ");
+    }
+
+    function xorBytes(bytes) {
+      return bytes.reduce((result, byte) => result ^ byte, 0);
+    }
+
+    function calculateChecksum(packet) {
+      if (packet.hex.length <= 10) {
+        return 0;
+      }
+      return xorAsciiText(packet.hex.slice(8, -2));
+    }
+
+    function xorAsciiText(text) {
+      return Array.from(text).reduce((result, char) => result ^ char.charCodeAt(0), 0);
+    }
+
+    function formatErrorCode(byte) {
+      const reasons = [
+        "無錯誤",
+        "過電流",
+        "電源異常",
+        "Hall 異常",
+        "光電異常",
+        "RF 發射異常",
+        "按鍵異常",
+        "外部輸入異常",
+        "Wi-Fi 異常",
+        "Bluetooth 異常",
+        "逾時",
+        "系統異常",
+        "過載",
+        "UART 異常",
+        "ACK UART 異常",
+        "保留碼"
+      ];
+      const eep = (byte & 0x80) !== 0;
+      const ram = (byte & 0x40) !== 0;
+      const code = byte & 0x0F;
+      const memoryStatus = [];
+      if (eep) {
+        memoryStatus.push("EEPROM 錯誤");
+      }
+      if (ram) {
+        memoryStatus.push("RAM 錯誤");
+      }
+      if (memoryStatus.length === 0 && code === 0) {
+        return "沒有偵測到錯誤";
+      }
+      const prefix = memoryStatus.length ? `${memoryStatus.join("、")}；` : "";
+      return `${prefix}${reasons[code]}（代碼 ${code}）`;
+    }
+
+    function formatErrorCodeEntry(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 9) {
+        return "-";
+      }
+      return formatErrorCode(bytes[8]);
+    }
+
+    function formatSystemType(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 5) {
+        return "-";
+      }
+      const raw = bytes[4];
+      const prefix = (raw & 0x80) !== 0 ? "時間基準" : "Hall 基準";
+      return `${prefix}`;
+    }
+
+    function formatReleaseVersion(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 4) {
+        return "-";
+      }
+      return `V${bytes[3]}`;
+    }
+
+    function formatRunCount(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 7) {
+        return "-";
+      }
+      const count = (bytes[5] << 8) | bytes[6];
+      return String(count);
+    }
+
+    function formatPerformanceDelta(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 8) {
+        return "-";
+      }
+      const signed = bytes[7] >= 0x80 ? bytes[7] - 0x100 : bytes[7];
+      return signed === 0 ? "0%" : `${signed > 0 ? "+" : ""}${signed}%`;
+    }
+
+    function formatPosition(field) {
+      if (typeof field.offset !== "number") {
+        return "-";
+      }
+      if (field.length === 1) {
+        return `Payload[${field.offset}]`;
+      }
+      return `Payload[${field.offset}..${field.offset + field.length - 1}]`;
+    }
+
+    function getMotorCurrents(packet, startOffset) {
+      const points = [];
+      const percentages = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95];
+      for (let index = 0; index < percentages.length; index += 1) {
+        const offset = startOffset + index * 2;
+        if (offset >= packet.bytes.length) {
+          break;
+        }
+        const raw = packet.bytes[offset];
+        points.push({
+          percent: percentages[index],
+          amp: raw === 0xFF ? 0 : raw / 10
+        });
+      }
+      return points;
+    }
+
+    function getMotorDuties(packet, startOffset) {
+      const points = [];
+      const percentages = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95];
+      for (let index = 0; index < percentages.length; index += 1) {
+        const offset = startOffset + index * 2 + 1;
+        if (offset >= packet.bytes.length) {
+          break;
+        }
+        const raw = packet.bytes[offset];
+        points.push({
+          percent: percentages[index],
+          duty: raw === 0xFF ? 0 : raw & 0x7F,
+          source: raw === 0xFF ? "mains" : (raw & 0x80) !== 0 ? "battery" : "mains"
+        });
+      }
+      return points;
+    }
+
+    function renderMotorChart(allPackets, startOffset, canvas, statusEl, legendEl, title, currentMax = null, filterDirs = ["open", "close"]) {
+      const packets = allPackets.filter((p) => filterDirs.includes(directionLabel(p, startOffset)));
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const displayWidth = Math.floor(rect.width);
+      const displayHeight = Math.floor(rect.height);
+      const renderWidth = Math.floor(displayWidth * dpr);
+      const renderHeight = Math.floor(displayHeight * dpr);
+      if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+        canvas.width = renderWidth;
+        canvas.height = renderHeight;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+      const width = displayWidth;
+      const height = displayHeight;
+
+      const hues = [210, 20, 160, 340, 50, 280, 10, 190, 90, 300];
+      const series = packets.map((packet, index) => {
+        const hue = hues[index % hues.length];
+        const direction = directionLabel(packet, startOffset);
+        const travelLength = travelLengthLabel(packet, startOffset);
+        const labelBase = `#${index + 1}`;
+        return {
+          label: `${labelBase} (${direction}${travelLength ? `, ${travelLength}` : ""})`,
+          currents: getMotorCurrents(packet, startOffset),
+          duties: getMotorDuties(packet, startOffset),
+          currentColor: `hsl(${hue}, 75%, 45%)`,
+          mainsColor: `hsla(${hue}, 75%, 35%, 0.85)`,
+          batteryColor: `hsla(${hue}, 75%, 55%, 0.85)`,
+          alpha: Math.max(0.4, 1 - (packets.length - 1 - index) * 0.15)
+        };
+      });
+
+      const currentValues = series.flatMap((item) => item.currents.map((point) => point.amp));
+      const dutyValues = series.flatMap((item) => item.duties.map((point) => point.duty));
+      if (currentValues.length < 2 && dutyValues.length < 2) {
+        statusEl.textContent = `目前無足夠 ${title} 電流或 DUTY 資料可繪製曲線。`;
+        statusEl.className = "status error";
+        return;
+      }
+
+      statusEl.textContent = `已繪製 ${title} 電流與 DUTY 曲線，共 ${packets.length} 筆封包。`;
+      statusEl.className = "status ok";
+
+      const paddingLeft = 48;
+      const paddingRight = 42;
+      const paddingTop = 22;
+      const paddingBottom = 28;
+      const plotWidth = width - paddingLeft - paddingRight;
+      const plotHeight = height - paddingTop - paddingBottom;
+      const minAmp = Math.min(0, ...currentValues);
+      const maxAmp = currentMax !== null ? currentMax : Math.max(2, ...currentValues);
+      const minDuty = 0;
+      const maxDuty = 100;
+      const xDomainMin = 5;
+      const xDomainMax = 95;
+      const xRange = xDomainMax - xDomainMin;
+      const yRangeAmp = maxAmp - minAmp || 1;
+      const yRangeDuty = maxDuty - minDuty || 1;
+
+      function toX(percent) {
+        return paddingLeft + ((percent - xDomainMin) / xRange) * plotWidth;
+      }
+      function toYAmp(amp) {
+        return height - paddingBottom - ((amp - minAmp) / yRangeAmp) * plotHeight;
+      }
+      function toYDuty(duty) {
+        return height - paddingBottom - ((duty - minDuty) / yRangeDuty) * plotHeight;
+      }
+
+      ctx.strokeStyle = "#d9e0e8";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 5; i += 1) {
+        const y = paddingTop + (plotHeight / 5) * i;
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(width - paddingRight, y);
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let i = 0; i < 10; i += 1) {
+        const x = toX(5 + i * 10);
+        ctx.moveTo(x, paddingTop);
+        ctx.lineTo(x, height - paddingBottom);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "#17202a";
+      ctx.fillStyle = "#17202a";
+      ctx.lineWidth = 1.5;
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 5; i += 1) {
+        const value = maxAmp - (yRangeAmp / 5) * i;
+        const y = paddingTop + (plotHeight / 5) * i;
+        ctx.fillText(value.toFixed(1) + "A", paddingLeft - 10, y);
+      }
+
+      ctx.textAlign = "left";
+      for (let i = 0; i <= 5; i += 1) {
+        const value = minDuty + (yRangeDuty / 5) * (5 - i);
+        const y = paddingTop + (plotHeight / 5) * i;
+        ctx.fillText(`${value.toFixed(0)}%`, width - paddingRight + 10, y);
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let i = 0; i < 10; i += 1) {
+        const x = toX(5 + i * 10);
+        ctx.fillText(`${5 + i * 10}%`, x, height - paddingBottom + 8);
+      }
+
+      function drawSeries(series, color, yMapper, dash = [], alpha = 1) {
+        if (series.length === 0) {
+          return;
+        }
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash(dash);
+        ctx.beginPath();
+        series.forEach((point, index) => {
+          const x = toX(point.percent);
+          const y = yMapper(point);
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+        series.forEach((point) => {
+          const x = toX(point.percent);
+          const y = yMapper(point);
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      series.forEach((item, index) => {
+        const mains = item.duties.filter((point) => point.source === "mains");
+        const battery = item.duties.filter((point) => point.source === "battery");
+        drawSeries(item.currents, item.currentColor, (point) => toYAmp(point.amp), [], item.alpha);
+        drawSeries(mains, item.mainsColor, (point) => toYDuty(point.duty), [6, 4], 0.9);
+        drawSeries(battery, item.batteryColor, (point) => toYDuty(point.duty), [6, 4], 0.9);
+      });
+
+      if (legendEl) {
+        legendEl.innerHTML = series
+          .map((item) => `<span><span class="chart-swatch" style="background:${item.currentColor}"></span>${item.label}</span>`)
+          .join("");
+      }
+
+      ctx.fillStyle = "#17202a";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("左軸: 電流 A", paddingLeft, 12);
+      ctx.fillText("右軸: DUTY %", paddingLeft + 140, 12);
+    }
+
+    function directionLabel(packet, startOffset) {
+      const bytes = packet.bytes;
+      const directionOffset = startOffset - 2;
+      if (directionOffset < 0 || bytes.length <= directionOffset + 1) {
+        return "unknown";
+      }
+      const raw = (bytes[directionOffset] << 8) | bytes[directionOffset + 1];
+      return (raw & 0x8000) !== 0 ? "close" : "open";
+    }
+
+    function travelLengthLabel(packet, startOffset) {
+      const bytes = packet.bytes;
+      const directionOffset = startOffset - 2;
+      if (directionOffset < 0 || bytes.length <= directionOffset + 1) {
+        return "";
+      }
+      const raw = (bytes[directionOffset] << 8) | bytes[directionOffset + 1];
+      const travel = raw & 0x7FFF;
+      return `travel ${travel}`;
+    }
+
+    function getPerformanceDelta(packet) {
+      const bytes = packet.bytes;
+      if (bytes.length < 8) {
+        return null;
+      }
+      const raw = bytes[7];
+      return raw >= 0x80 ? raw - 0x100 : raw;
+    }
+
+    function renderPerformanceChart(packets, canvas, statusEl) {
+      const deltas = packets.map((packet, index) => ({
+        index: index + 1,
+        delta: getPerformanceDelta(packet)
+      })).filter((item) => item.delta !== null);
+
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const displayWidth = Math.floor(rect.width);
+      const displayHeight = Math.floor(rect.height);
+      const renderWidth = Math.floor(displayWidth * dpr);
+      const renderHeight = Math.floor(displayHeight * dpr);
+      if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+        canvas.width = renderWidth;
+        canvas.height = renderHeight;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+      if (deltas.length === 0) {
+        statusEl.textContent = "目前無足夠性能變異率資料可繪製曲線。";
+        statusEl.className = "status error";
+        return;
+      }
+
+      statusEl.textContent = `已繪製性能變異率曲線，共 ${deltas.length} 筆封包。`;
+      statusEl.className = "status ok";
+
+      const paddingLeft = 52;
+      const paddingRight = 28;
+      const paddingTop = 26;
+      const paddingBottom = 32;
+      const width = displayWidth;
+      const height = displayHeight;
+      const plotWidth = width - paddingLeft - paddingRight;
+      const plotHeight = height - paddingTop - paddingBottom;
+
+      const minX = 1;
+      const maxX = deltas.length;
+      const minDelta = Math.min(...deltas.map((item) => item.delta), 0);
+      const maxDelta = Math.max(...deltas.map((item) => item.delta), 0);
+      const yMin = Math.min(minDelta, -5);
+      const yMax = Math.max(maxDelta, 5);
+      const yRange = yMax - yMin || 1;
+
+      const toX = (packetIndex) => paddingLeft + ((packetIndex - minX) / (maxX - minX || 1)) * plotWidth;
+      const toY = (value) => height - paddingBottom - ((value - yMin) / yRange) * plotHeight;
+
+      ctx.strokeStyle = "#d9e0e8";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 4; i += 1) {
+        const y = paddingTop + (plotHeight / 4) * i;
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(width - paddingRight, y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "#17202a";
+      ctx.fillStyle = "#17202a";
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 4; i += 1) {
+        const value = yMax - (yRange / 4) * i;
+        const y = paddingTop + (plotHeight / 4) * i;
+        ctx.fillText(`${value.toFixed(0)}%`, paddingLeft - 10, y);
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let i = 0; i < deltas.length; i += 1) {
+        const x = toX(minX + i);
+        ctx.fillText(String(minX + i), x, height - paddingBottom + 8);
+      }
+
+      ctx.beginPath();
+      ctx.strokeStyle = "#4a4ab5";
+      ctx.lineWidth = 2;
+      deltas.forEach((point, index) => {
+        const x = toX(point.index);
+        const y = toY(point.delta);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = "#4a4ab5";
+      deltas.forEach((point) => {
+        const x = toX(point.index);
+        const y = toY(point.delta);
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      const zeroY = toY(0);
+      ctx.strokeStyle = "#b0b7c3";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(paddingLeft, zeroY);
+      ctx.lineTo(width - paddingRight, zeroY);
+      ctx.stroke();
+
+      ctx.fillStyle = "#17202a";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("0% 基準線", paddingLeft, 10);
+    }
+
+    function formatScaled(value, divisor) {
+      return (value / divisor).toLocaleString("en-US", {
+        minimumFractionDigits: divisor === 10 ? 1 : 2,
+        maximumFractionDigits: divisor === 10 ? 1 : 2
+      });
+    }
+
+    function printableAscii(byte) {
+      return byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : ".";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setStatus(message, kind) {
+      els.status.textContent = message;
+      els.status.className = `status ${kind || ""}`.trim();
+    }
+
+    function parseAndRender() {
+      try {
+        const packets = parsePackets(els.source.value);
+        const packet = packets[packets.length - 1];
+        renderSummary(packet, packets.length);
+        renderFields(packet);
+        renderBytes(packet.bytes);
+        renderAscii(packet.bytes);
+        renderChecksumProcess(packet);
+
+        const m1FilterOpen = document.getElementById("m1FilterOpen").checked;
+        const m1FilterClose = document.getElementById("m1FilterClose").checked;
+        const m2FilterOpen = document.getElementById("m2FilterOpen").checked;
+        const m2FilterClose = document.getElementById("m2FilterClose").checked;
+        const m1Dirs = [];
+        if (m1FilterOpen) m1Dirs.push("open");
+        if (m1FilterClose) m1Dirs.push("close");
+        const m2Dirs = [];
+        if (m2FilterOpen) m2Dirs.push("open");
+        if (m2FilterClose) m2Dirs.push("close");
+
+        const allCurrentValues = packets.flatMap((item) => [
+          ...getMotorCurrents(item, 11).map((point) => point.amp),
+          ...getMotorCurrents(item, 33).map((point) => point.amp)
+        ]);
+        const globalCurrentMax = Math.max(2, ...allCurrentValues, 0);
+
+        renderMotorChart(packets, 11, els.m1Chart, els.m1ChartStatus, els.m1PacketLegend, "M1", globalCurrentMax, m1Dirs);
+        renderMotorChart(packets, 33, els.m2Chart, els.m2ChartStatus, els.m2PacketLegend, "M2", globalCurrentMax, m2Dirs);
+        renderPerformanceChart(packets, els.performanceChart, els.performanceChartStatus);
+
+        if (!packet.hex) {
+          setStatus("請輸入資料。", "");
+        } else {
+          setStatus(`解析完成，共 ${packets.length} 筆封包。`, "ok");
+        }
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    parseAndRender();
+  </script>
+</body>
+</html>
